@@ -11,19 +11,21 @@
    |calc
       @1
          $reset = *reset;
+
+         $valid[0] = $reset ? 0 : (>>1$valid + 1);
          
-         
-         $val1[31:0] = >>1$out;
+         $val1[31:0] = >>2$out;
          $val2[31:0] = $rand2[3:0];
 
          $sum[31:0] = $val1 + $val2;
          $diff[31:0] = $val1 - $val2;
          $prod[31:0] = $val1 * $val2;
          $quot[31:0] = $val1 / $val2;
-
-         $out[31:0] = $reset ? 32'b0 : (($op[1:0] == 0) ? $sum : (($op[1:0] == 1) ? $diff : (($op[1:0] == 2) ? $prod : $quot)));
          
-         $cnt[0] = $reset ? 0 : (>>1$cnt + 1);
+         $op[1:0] = $rand_op[1:0];
+      @2
+         $out[31:0] = ($reset || (! $valid)) ? 32'b0 : (($op == 0) ? $sum : (($op == 1) ? $diff : (($op == 2) ? $prod : $quot)));
+         
 
       // Macro instantiations for calculator visualization(disabled by default).
       // Uncomment to enable visualisation, and also,
