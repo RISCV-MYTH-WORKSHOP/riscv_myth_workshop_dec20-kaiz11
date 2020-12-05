@@ -64,9 +64,10 @@
                       $is_s_instr ? { {21{$instr[31]}}, $instr[30:25], $instr[11:7] } :
                       $is_b_instr ? { {20{$instr[31]}}, $instr[7], $instr[30:25], $instr[11:8], 1'b0 } :
                       $is_u_instr ? { $instr[31:12], 12'b0 } :
-                      { {12{$instr[31]}}, $instr[19:12], $instr[20], $instr[30:21], 1'b0 };
+                      $is_j_instr ? { {12{$instr[31]}}, $instr[19:12], $instr[20], $instr[30:21], 1'b0 } :
+                      32'bx;
          
-         // Instruction Decode
+         // Instruction Field Decode
          $opcode[6:0] = $instr[6:0];
          
          $rd_valid = $is_r_instr || $is_i_instr || $is_u_instr || $is_j_instr;
@@ -85,6 +86,74 @@
          $funct7_valid = $is_r_instr;
          ?$funct7_valid
             $funct7[6:0] = $instr[31:25];
+            
+         // Instruction Opcode Decode
+         $dec_bits[10:0] = {$funct7[5], $funct3, $opcode};
+         
+         //$is_lui = $dec_bits ==? 11'bx_xxx_0110111;
+         //$is_auipc = $dec_bits ==? 11'bx_xxx_0010111;
+         //$is_jal = $dec_bits ==? 11'bx_xxx_1101111;
+         //$is_jalr = $dec_bits ==? 11'bx_000_1100111;
+         
+         $is_beq = $dec_bits ==? 11'bx_000_1100011;
+         $is_bne = $dec_bits ==? 11'bx_001_1100011;
+         $is_blt = $dec_bits ==? 11'bx_100_1100011;
+         $is_bge = $dec_bits ==? 11'bx_101_1100011;
+         $is_bltu = $dec_bits ==? 11'bx_110_1100011;
+         $is_bgeu = $dec_bits ==? 11'bx_111_1100011;
+         
+         //$is_lb = $dec_bits ==? 11'bx_000_0000011;
+         //$is_lh = $dec_bits ==? 11'bx_001_0000011;
+         //$is_lw = $dec_bits ==? 11'bx_010_0000011;
+         //$is_lbu = $dec_bits ==? 11'bx_100_0000011;
+         //$is_lhu = $dec_bits ==? 11'bx_101_0000011;
+         
+         //$is_sb = $dec_bits ==? 11'bx_000_0100011;
+         //$is_sh = $dec_bits ==? 11'bx_001_0100011;
+         //$is_sw = $dec_bits ==? 11'bx_010_0100011;
+         
+         $is_addi = $dec_bits ==? 11'bx_000_0010011;
+         //$is_slti = $dec_bits ==? 11'bx_010_0010011;
+         //$is_sltiu = $dec_bits ==? 11'bx_011_0010011;
+         //$is_xori = $dec_bits ==? 11'bx_100_0010011;
+         //$is_ori = $dec_bits ==? 11'bx_110_0010011;
+         //$is_andi = $dec_bits ==? 11'bx_111_0010011;
+         
+         //$is_slli = $dec_bits == 11'b0_001_0010011;
+         //$is_srli = $dec_bits == 11'b0_101_0010011;
+         //$is_srai = $dec_bits == 11'b1_101_0010011;
+         
+         $is_add = $dec_bits == 11'b0_000_0110011;
+         //$is_sub = $dec_bits == 11'b1_000_0110011;
+         //$is_sll = $dec_bits == 11'b0_001_0110011;
+         //$is_slt = $dec_bits == 11'b0_010_0110011;
+         //$is_sltu = $dec_bits == 11'b0_011_0110011;
+         //$is_xor = $dec_bits == 11'b0_100_0110011;
+         //$is_srl = $dec_bits == 11'b0_101_0110011;
+         //$is_sra = $dec_bits == 11'b1_101_0110011;
+         //$is_or = $dec_bits == 11'b0_110_0110011;
+         //$is_and = $dec_bits == 11'b0_111_0110011;
+         
+         //Register File Read
+         $rf_rd_en1 = $rs1_funct3_valid;
+         $rf_rd_index1[4:0] = $rs1;
+         $rf_rd_en2 = $rs2_valid;
+         $rf_rd_index2[4:0] = $rs2;
+         
+         $src1_value = $rf_rd_data1;
+         $src2_value = $rf_rd_data2;
+         
+         // ALU
+         $result[31:0] = $is_addi ? $src1_value + $imm :
+                         $is_add ? $src1_value + $src2_value :
+                         31'bx;
+         
+         //Register File Write
+         $is_rd_not_zero = $rd != 0;
+         ?$is_rd_not_zero
+            $rf_wr_en = $rd_valid;
+            $rf_wr_index[4:0] = $rd;
+            $rf_wr_data[31:0] = $result;
 
       // Note: Because of the magic we are using for visualisation, if visualisation is enabled below,
       //       be sure to avoid having unassigned signals (which you might be using for random inputs)
@@ -102,7 +171,7 @@
    //  o CPU visualization
    |cpu
       m4+imem(@1)    // Args: (read stage)
-      //m4+rf(@1, @1)  // Args: (read stage, write stage) - if equal, no register bypass is required
+      m4+rf(@1, @1)  // Args: (read stage, write stage) - if equal, no register bypass is required
       //m4+dmem(@4)    // Args: (read/write stage)
    
    m4+cpu_viz(@4)    // For visualisation, argument should be at least equal to the last stage of CPU logic
