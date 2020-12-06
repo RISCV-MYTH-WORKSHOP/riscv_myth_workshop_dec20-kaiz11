@@ -41,12 +41,19 @@
       @0
          $reset = *reset;
          $pc[31:0] = >>1$reset ? 31'd0 :
-                     >>1$taken_br ? >>1$br_tgt_pc :
-                     (>>1$pc + 32'd4);
+                     >>3$valid_taken_br ? >>3$br_tgt_pc :
+                     (>>3$pc + 32'd4);
          
          $imem_rd_en = ! $reset;
          $imem_rd_addr[M4_IMEM_INDEX_CNT-1:0] = $pc[M4_IMEM_INDEX_CNT+1:2];
+         
+         $start = (>>1$reset && (! $reset)) ? 1'b1:
+                  1'b0;
+         $valid = $reset ? 1'b0 :
+                  $start ? 1'b1 :
+                  >>3$valid;
       @1
+         // Read Memory Instruction
          $instr[31:0] = $imem_rd_data;
          
          // Instruction Types Decode
@@ -153,7 +160,7 @@
          //Register File Write
          $is_rd_not_zero = $rd != 0;
          ?$is_rd_not_zero
-            $rf_wr_en = $rd_valid;
+            $rf_wr_en = $rd_valid && $valid;
             $rf_wr_index[4:0] = $rd;
             $rf_wr_data[31:0] = $result;
             
@@ -167,6 +174,7 @@
                      ($is_bgeu && ($src1_value >= $src2_value)) ? 1'b1 :
                      1'b0;
          
+         $valid_taken_br = $valid && $taken_br;
          $br_tgt_pc = $pc + $imm;
 
       // Note: Because of the magic we are using for visualisation, if visualisation is enabled below,
