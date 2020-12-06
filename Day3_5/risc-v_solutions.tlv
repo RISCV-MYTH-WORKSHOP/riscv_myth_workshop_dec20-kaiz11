@@ -40,20 +40,13 @@
    |cpu
       @0
          $reset = *reset;
-         $pc[31:0] = >>1$reset ? 31'd0 :
-                     >>3$valid_taken_br ? >>3$br_tgt_pc :
-                     (>>3$pc + 32'd4);
+         $pc[31:0] = >>1$reset ? 32'd0 :
+                     >>1$taken_br ? >>1$br_tgt_pc :
+                     (>>1$pc + 32'd4);
          
          $imem_rd_en = ! $reset;
          $imem_rd_addr[M4_IMEM_INDEX_CNT-1:0] = $pc[M4_IMEM_INDEX_CNT+1:2];
-         
-         $start = (>>1$reset && (! $reset)) ? 1'b1:
-                  1'b0;
-         $valid = $reset ? 1'b0 :
-                  $start ? 1'b1 :
-                  >>3$valid;
       @1
-         // Read Memory Instruction
          $instr[31:0] = $imem_rd_data;
          
          // Instruction Types Decode
@@ -83,10 +76,13 @@
          ?$rd_valid
             $rd[4:0] = $instr[11:7];
          
-         $rs1_funct3_valid = $is_r_instr || $is_i_instr || $is_s_instr || $is_b_instr;
-         ?$rs1_funct3_valid
-            $funct3[2:0] = $instr[14:12];
+         $rs1_valid = $is_r_instr || $is_i_instr || $is_s_instr || $is_b_instr;
+         ?$rs1_valid
             $rs1[4:0] = $instr[19:15];
+         
+         $funct3_valid = $is_r_instr || $is_i_instr || $is_s_instr || $is_b_instr;
+         ?$funct3_valid
+            $funct3[2:0] = $instr[14:12];
          
          $rs2_valid = $is_r_instr || $is_s_instr || $is_b_instr;
          ?$rs2_valid
@@ -144,7 +140,7 @@
          //$is_and = $dec_bits == 11'b0_111_0110011;
          
          //Register File Read
-         $rf_rd_en1 = $rs1_funct3_valid;
+         $rf_rd_en1 = $rs1_valid;
          $rf_rd_index1[4:0] = $rs1;
          $rf_rd_en2 = $rs2_valid;
          $rf_rd_index2[4:0] = $rs2;
@@ -153,29 +149,27 @@
          $src2_value[31:0] = $rf_rd_data2;
          
          // ALU
-         $result[31:0] = $is_addi ? $src1_value + $imm :
-                         $is_add ? $src1_value + $src2_value :
-                         31'bx;
+         $result[31:0] = $is_addi ? ($src1_value + $imm) :
+                         $is_add ? ($src1_value + $src2_value) :
+                         32'bx;
          
          //Register File Write
-         $is_rd_not_zero = $rd != 0;
+         $is_rd_not_zero = ($rd != 5'b0);
          ?$is_rd_not_zero
-            $rf_wr_en = $rd_valid && $valid;
+            $rf_wr_en = $rd_valid;
             $rf_wr_index[4:0] = $rd;
             $rf_wr_data[31:0] = $result;
             
          //Branches
-         $taken_br = (! $is_b_instr) ? 1'b0 :
-                     ($is_beq && ($src1_value == $src2_value)) ? 1'b1 :
-                     ($is_bne && ($src1_value != $src2_value)) ? 1'b1 :
-                     ($is_blt && (($src1_value < $src2_value) ^ ($src1_value[31] != $src2_value[31]))) ? 1'b1 :
-                     ($is_bge && (($src1_value >= $src2_value) ^ ($src1_value[31] != $src2_value[31]))) ? 1'b1 :
-                     ($is_bltu && ($src1_value < $src2_value)) ? 1'b1 :
-                     ($is_bgeu && ($src1_value >= $src2_value)) ? 1'b1 :
+         $taken_br = $is_beq ? ($src1_value == $src2_value) :
+                     $is_bne ? ($src1_value != $src2_value) :
+                     $is_blt ? (($src1_value < $src2_value) ^ ($src1_value[31] != $src2_value[31])) :
+                     $is_bge ? (($src1_value >= $src2_value) ^ ($src1_value[31] != $src2_value[31])) :
+                     $is_bltu ? ($src1_value < $src2_value) :
+                     $is_bgeu ? ($src1_value >= $src2_value) :
                      1'b0;
          
-         $valid_taken_br = $valid && $taken_br;
-         $br_tgt_pc = $pc + $imm;
+         $br_tgt_pc[31:0] = $pc + $imm;
 
       // Note: Because of the magic we are using for visualisation, if visualisation is enabled below,
       //       be sure to avoid having unassigned signals (which you might be using for random inputs)
