@@ -18,6 +18,7 @@
   - [Pipelining RISC-V Core & Misc](#pipelining-risc-v-core--misc)
   - [Final Implementation](#final-implementation)
   - [Further Work](#further-work)
+  - [Acknowledgement](#acknowledgement)
 
 ## From application to hardware, a high level introduction
 
@@ -139,3 +140,8 @@ The final implementation can be found [here](/Day3_5/risc-v_solutions.tlv).
 ## Further Work
 
 - [ ] Complete the implementation of RV32I instruction set
+
+# Acknowledgement
+
+- [Kunal Ghosh](https://github.com/kunalg123) (Founder VSD)
+- [Steve Hoover](https://github.com/stevehoover) (Founder Redwood EDA)
